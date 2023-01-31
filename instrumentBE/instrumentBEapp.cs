@@ -109,7 +109,3 @@ static string ArgSwitch(string[] CurrentArg, string LogFile){
     }
     return CurrentArg[inc];
 }
-
-bool TryParse(string? v, out string connectThroughTCPPort) {
-    throw new NotImplementedException();
-}
