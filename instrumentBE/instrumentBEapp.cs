@@ -11,39 +11,56 @@ string[] ArgsRotation = new string[] {"Configure TCP port to use for FE connecti
 
 ArgSwitch(ArgsRotation);
 
-static void ClearLine(string text)
-{
-    Console.SetCursorPosition(0, Console.CursorTop);
-    Console.Write(new string(' ', Console.WindowWidth));
-    Console.SetCursorPosition(0, Console.CursorTop);
-    Console.WriteLine(text);
-}
+static void ClearLine(string text, int MoveBack, int xLines = 0) {
 
+    if (MoveBack == 0) {
+        Console.SetCursorPosition(0, Console.CursorTop);
+        Console.Write(new string(' ', Console.WindowWidth));
+        Console.SetCursorPosition(0, Console.CursorTop);
+        Console.WriteLine(text);
+    }
+    if (MoveBack == 1) {
+        Console.SetCursorPosition(0, Console.CursorTop - xLines);
+        for (int i = 0; i < xLines; i++) {
+            Console.WriteLine(new string(' ', Console.BufferWidth));
+        }
+        Console.SetCursorPosition(0, Console.CursorTop - xLines);
+
+    }
+}
 static string ArgSwitch(string[] CurrentArg){
     int inc = 0;
-
+    Console.WriteLine("Press TAB to switch between arguments, ENTER to select");
     while (true){
-        ClearLine("");
+        ClearLine("", 0);
         Console.Write(CurrentArg[inc]);
         ConsoleKeyInfo keyInfo = Console.ReadKey(true);
         
         if (keyInfo.Key == ConsoleKey.Tab) {
             inc += 1;
-            ClearLine("");
+            ClearLine("", 0);
             Console.SetCursorPosition(0, Console.CursorTop-2);
-            
             if (CurrentArg[inc] == CurrentArg[CurrentArg.Length - 1]) {
                 inc = 0;
             }
             continue;
         }
         else if (keyInfo.Key == ConsoleKey.Enter) {
-            Console.WriteLine($"\nYou selected: {CurrentArg[inc]}");
+            Console.WriteLine($"\nYou selected to {CurrentArg[inc]}");
             
-            if (inc == 0){
-                Console.WriteLine("TCP port:");
-                int ConnectThroughTCPport = Convert.ToInt32(Console.ReadLine());
-                Console.WriteLine("asdf");
+            while (inc == 0){
+                Console.WriteLine("\nTCP port:");
+                int connectThroughTCPPort;
+                bool isValidInput = int.TryParse(Console.ReadLine(), out connectThroughTCPPort);
+
+                if (!isValidInput) {
+                    ClearLine("", 1, 4);
+                    Console.WriteLine("No port number was input, please try again.");
+                }
+                else {
+                    CurrentArg[0] = "Reconfigure TCP port to use for FE connections";
+                    break;
+                }
             }
             if (inc == 1)
             {
@@ -60,13 +77,5 @@ static string ArgSwitch(string[] CurrentArg){
         }
     }
     return CurrentArg[inc];
-}
-static void WriteOnBottomLine(string text){
-    int x = Console.CursorLeft;
-    int y = Console.CursorTop;
-    Console.CursorTop = Console.WindowTop + Console.WindowHeight - 1;
-    Console.Write(text);
-    // Restore previous position
-    Console.SetCursorPosition(x, y);
 }
 
