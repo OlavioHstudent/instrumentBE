@@ -26,15 +26,14 @@ static void ClearLine(string text, int MoveBack, int xLines = 0) {
         Console.SetCursorPosition(0, Console.CursorTop);
         Console.Write(new string(' ', Console.WindowWidth));
         Console.SetCursorPosition(0, Console.CursorTop);
-        Console.WriteLine(text);
-    }
+        Console.WriteLine(text);}
+
     if (MoveBack == 1) {
         Console.SetCursorPosition(0, Console.CursorTop - xLines);
         for (int i = 0; i < xLines; i++) {
-            Console.WriteLine(new string(' ', Console.BufferWidth));
-        }
-        Console.SetCursorPosition(0, Console.CursorTop - xLines);
-    }
+            Console.WriteLine(new string(' ', Console.BufferWidth));}
+
+        Console.SetCursorPosition(0, Console.CursorTop - xLines);}
 }
 static string ArgSwitch(string[] CurrentArg, string LogFile) {
     int inc = 0;
@@ -52,10 +51,9 @@ static string ArgSwitch(string[] CurrentArg, string LogFile) {
             Console.SetCursorPosition(0, Console.CursorTop-2);
 
             if (CurrentArg[inc] == CurrentArg[CurrentArg.Length-1]) {
-                inc = 0;
-            }
-            continue;
-        }
+                inc = 0;}
+            continue;}
+
         else if (keyPress.Key == ConsoleKey.Enter) {
             Console.WriteLine($"\nYou selected to {CurrentArg[inc]}. Continue below.");
 
@@ -64,18 +62,14 @@ static string ArgSwitch(string[] CurrentArg, string LogFile) {
 
                 bool isValidInput = int.TryParse(Console.ReadLine(), out connectThroughTCPPort);
 
-
                 if (!isValidInput) {
                     ClearLine("", 1, 4);
-                    Console.WriteLine("No port number was input, please choose a port.");
-                }
+                    Console.WriteLine("No port number was input, please choose a port.");}
                 else {
                     Console.WriteLine($"\nPort {connectThroughTCPPort} selected");
                     Console.WriteLine("\nTAB to cycle through configurations, ENTER to select:");
                     CurrentArg[0] = "Reconfigure TCP port to use for instrumentFE connections";
-                    break;
-                }
-            }
+                    break;}}
 
             // Choose TCP port for FE connection
             if (inc == 1)
@@ -85,38 +79,33 @@ static string ArgSwitch(string[] CurrentArg, string LogFile) {
                     string connectThroughIP = Console.ReadLine();
                     if (string.IsNullOrEmpty(connectThroughIP)) {
                         ClearLine("", 1, 4);
-                        Console.WriteLine("No IP address was input, please enter an IP address.");
-                    }
+                        Console.WriteLine("No IP address was input, please enter an IP address.");}
+
                     else {
                         Console.WriteLine($"\nIP address {connectThroughIP} selected, press enter to listen on port {connectThroughTCPPort}");
                         if (connectThroughTCPPort > 0) {
-                            ConnectionPoint(connectThroughTCPPort, CurrentArg);
-                        }
+                            ConnectionPoint(connectThroughTCPPort, CurrentArg);}
+
                         Console.WriteLine("\nTAB to cycle through configurations, ENTER to select:");
                         CurrentArg[1] = "Reconfigure IP to use for instrumentDataDB";
-                        break;
-                    }
+                        break;}
                 }
             }
 
             // Choose IP for DataDB connection
-            if (inc == 2)
-            {
+            if (inc == 2){
+                
                 //How the fuck do I make it run in the bg? Minimize maybe?
              }
 
             // Log to file
-            if (inc == 3)
-            {
+            if (inc == 3){
                 File.WriteAllText(LogFile, string.Empty);
                 using (StreamWriter LogToFile = File.AppendText("log.txt")) {
-                    LogToFile.WriteLine("Logging this text");
-                }
+                    LogToFile.WriteLine("Logging this text");}
+
                 string LogFilePath = Path.Combine(Directory.GetCurrentDirectory(), LogFile);
-                Console.WriteLine($"Sensor Data logged to log.txt in this directory:\n{LogFilePath}");
-            }
-        }
-    }
+                Console.WriteLine($"Sensor Data logged to log.txt in this directory:\n{LogFilePath}");}}}
 }
 
 static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFile = "") {                   // Line 122 to 148 was a modification ChatGPT did to my code to make it possible for me to
@@ -133,8 +122,7 @@ static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFil
                 Console.WriteLine("Client connected");
                 NetworkStream FE_BE_Stream = client.GetStream();
                 // ...
-            }
-        }
+            }}
 
         Console.WriteLine("Stopped listening");
         listener.Stop();
@@ -147,3 +135,7 @@ static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFil
     cancellationTokenSource.Cancel();
     await listeningTask;
 }
+
+/* SerialPort serialPort = new SerialPort(PortName, baudRate)
+serialPort.Open()
+*/
