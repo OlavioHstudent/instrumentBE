@@ -8,9 +8,12 @@ using System.Threading;
 using static System.Net.Mime.MediaTypeNames;
 using System.IO.Ports;
 using System.IO;
+using System;
+using static appInterface;
 
 // Variables
 string LogFile = "log.txt";
+
 string[] ArgsRotation = new string[] {"Configure TCP port to use for FE connections",           // 0
                                       "Configure IP address and tcp port to instrumentDataDB",  // 1
                                       "Run program in background - NOT WORKING - ",             // 2
@@ -22,6 +25,9 @@ appInterface.ArgSwitch(ArgsRotation, LogFile);
 
 
 class appInterface{
+    private static SerialPort serialPort = new SerialPort();
+    public int connectedBitrate = 0;
+    public string connectedCOMPort = "";
     static void ClearLine(string text, int MoveBack, int xLines = 0) {
 
         if (MoveBack == 0) {
@@ -101,11 +107,12 @@ class appInterface{
     }
 
     static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFile = "") {                   
-        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();                        
-
+        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         Task listeningTask = Task.Run(async () => {
             TcpListener listener = new TcpListener(IPAddress.Any, port);
             listener.Start();
+            string COMPortFromRequest = "3";
+            int bitRateFromRequest = 9600;
 
             while (!cancellationTokenSource.Token.IsCancellationRequested) {
                 TcpClient client = await listener.AcceptTcpClientAsync(cancellationTokenSource.Token);
@@ -115,63 +122,125 @@ class appInterface{
                     ClearLine("", 1,1);
                     Console.WriteLine("Connection established");
                     NetworkStream stream = client.GetStream();
+                    DataTransfer dataTransfer = new DataTransfer(stream);
                     byte[] buffer = new byte[1024];
-                    int bytesReceived = stream.Read(buffer, 0, buffer.Length);
-                    string response = Encoding.ASCII.GetString(buffer, 0, bytesReceived);
-                    Console.WriteLine(response); //At the moment prints "hello server"
-                    Console.WriteLine(SerialCommand("readscaled"));}
-            }
+                    string connectionStatus = "";
+                    string[] portNameList= SerialPort.GetPortNames();
+
+                    string availablePorts = string.Join(",", portNameList);
+                    dataTransfer.SendMessage(availablePorts);
+
+                    while (true) {
+                        int bytesReceived = stream.Read(buffer, 0, buffer.Length);
+                        string request = Encoding.ASCII.GetString(buffer, 0, bytesReceived);
+
+                        //Connect to instrument
+                        if (request.Substring(0, 6) == "COMcon") {
+                            COMPortFromRequest = $"COM{request.Substring(7, 1)}";
+                            bitRateFromRequest = Convert.ToInt32(request.Substring(11));
+                            connectionStatus = ConnectSerialPort(COMPortFromRequest, bitRateFromRequest);
+
+                            if (connectionStatus == "Connected") {
+                                dataTransfer.SendMessage("Connection success");}
+
+                            if (connectionStatus == "Connection error") {
+                                dataTransfer.SendMessage("Connection Error. Please try again, a different port or consider restarting software.");}
+                            continue;
+                        }
+
+                        //Disconnect from instrument
+                        if (request.Substring(0, 6) == "COMdis") {
+                            Console.WriteLine("Disconnecting from COM port");
+                            connectionStatus = DisconnectSerialPort();
+
+                            if (connectionStatus == "Disconnected") {
+                                dataTransfer.SendMessage("Disconnected from instrument");}
+
+                            else if (connectionStatus == "Error disconnecting") {
+                                dataTransfer.SendMessage("Error disconnecting. Try again or consider violently shutting down system");}
+                            
+                            else if (connectionStatus == "Already closed") {
+                                dataTransfer.SendMessage("Instrument already disconnected");}
+                            continue;
+                        }
+
+                        //readconf
+                        if (request.Substring(0, 8) == "readconf") {
+                            RequestDataFromIno(request, dataTransfer);
+                            continue;
+                        }
+
+                        if (request.Substring(0, 9) == "writeconf") {
+                            RequestDataFromIno(request, dataTransfer);
+                            continue;
+                        }
+                        if (request.Substring(0, 10) == "readscaled") {
+                            RequestDataFromIno(request, dataTransfer);
+                            continue;
+                        }
+                        if (!client.Connected) {
+                            break;}
+                        continue;
+                    }
+                }}
 
             Console.WriteLine("Stopped listening");
-            listener.Stop();    }
-        
+            listener.Stop();    } 
+
         , cancellationTokenSource.Token);
 
         Console.WriteLine($"Listening on port {port}");
         Console.WriteLine("Press Esc to stop listening");
         while (Console.ReadKey().Key != ConsoleKey.Escape) { }
-
         cancellationTokenSource.Cancel();
         await listeningTask;
     }
 
-    static string InstrumentToBEConnection(string comPort, 
-                                           string bitRate,
-                                           string command){
-        string[] ComPorts = System.IO.Ports.SerialPort.GetPortNames();
-        Console.WriteLine("The following COM ports exist:");
-
-        foreach (string port in ComPorts){
-            Console.WriteLine(port);}
-
-        Console.WriteLine("Enter portName");
-        string portName = Console.ReadLine();
-
-        Console.WriteLine("Enter baud rate:");
-        int baudRate = Convert.ToInt32(Console.ReadLine());
-        SerialPort serialPort = new SerialPort(portName, baudRate);
-        serialPort.Open();
-
-        Console.WriteLine("Enter message to send to Arduino:");
-        string message = Console.ReadLine();
-        serialPort.WriteLine(message);
-        Console.WriteLine("Message sent. Waiting for response");
-
-        string response = serialPort.ReadLine();
-        Console.WriteLine($"Response received: {response}");
-        Console.ReadKey();
-        serialPort.Close();
-        return response;
-    }
-    static string SerialCommand(string command){
-        SerialPort serialPort = new SerialPort("COM3", 9600);
-        serialPort.Open();
-        serialPort.WriteLine(command);
+    static void RequestDataFromIno(string request, DataTransfer dataTransfer) {
+        serialPort.WriteLine(request);
         string inoResponse = serialPort.ReadLine();
-        serialPort.Close();
-        return inoResponse;
+        dataTransfer.SendMessage(inoResponse);
     }
+    static string ConnectSerialPort(string portName, int bitrate) {
+        try {
+        // Set the serial port settings
+            serialPort.PortName = portName;
+            serialPort.BaudRate = bitrate;
 
+            // Open the serial port
+            serialPort.Open();
+
+            Console.WriteLine($"Connected to serial port {portName} at {bitrate} bps.");
+            return "Connected";
+            
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Error connecting to serial port {portName}: {ex.Message}");
+            return "Connection error";
+        }
+    }
+    static string DisconnectSerialPort() {
+        if (serialPort.IsOpen) {
+            try {
+                // Close the serial port
+                serialPort.Close();
+
+                if (!serialPort.IsOpen) {
+                    Console.WriteLine("Disconnected from serial port.");
+                }
+                return "Disconnected";
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"Error disconnecting from serial port: {ex.Message}");
+                return "Error disconnecting";
+            }
+        }
+        else {
+            Console.WriteLine("Serial port is not open.");
+            return "Already closed";
+        }
+    }
+    
     private static void WriteToLogFile(string logText) {
         string fileName = "log.txt";
         string filePath = Path.Combine(Environment.CurrentDirectory, fileName);
@@ -180,7 +249,18 @@ class appInterface{
             using (StreamWriter sw = new StreamWriter(fs)) {
                 sw.WriteLine("" + System.DateTime.Now + " " + logText + "\r\n");
             }
-            fs.Close();
-        }
+            fs.Close();}}
+}
+public class DataTransfer {
+    private NetworkStream stream;
+
+    public DataTransfer(NetworkStream stream) {
+        this.stream = stream;
+    }
+
+    public void SendMessage(string message) {
+        byte[] data = Encoding.ASCII.GetBytes(message);
+        stream.Write(data, 0, data.Length);
     }
 }
+
