@@ -10,6 +10,7 @@ using System.IO.Ports;
 using System.IO;
 using System;
 using static appInterface;
+using System.Runtime.InteropServices;
 
 // Variables
 string LogFile = "log.txt";
@@ -48,6 +49,7 @@ class appInterface{
         int inc = 0;
         int connectThroughTCPPort = 0;
         Console.WriteLine("TAB to cycle through configurations. ENTER to select:");
+        RunInBGorFG(5);
 
         while (true) {
             ClearLine("", 0);
@@ -98,14 +100,26 @@ class appInterface{
                             break;  }}}
 
                 if (inc == 2) {
-                    //How the fuck do I make it run in the bg? Minimize maybe?
+                    RunInBGorFG(0);
                 }
 
-                // Log to file
-                if (inc == 3) {
+                    // Log to file
+                    if (inc == 3) {
                     WriteToLogFile("someText");}}}
     }
 
+    static void RunInBGorFG(int frontOrBack) {
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+        const int SW_SHOW = 5;
+        IntPtr hWnd = GetConsoleWindow();
+        ShowWindow(hWnd, frontOrBack);
+    }
     static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFile = "") {                   
         CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         Task listeningTask = Task.Run(async () => {
@@ -119,6 +133,7 @@ class appInterface{
 
                 //This is where it happens when connected
                 if (client.Connected) {
+                    RunInBGorFG(0);
                     ClearLine("", 1,1);
                     Console.WriteLine("Connection established");
                     NetworkStream stream = client.GetStream();
