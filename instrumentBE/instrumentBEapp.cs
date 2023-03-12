@@ -29,6 +29,8 @@ class appInterface{
     private static SerialPort serialPort = new SerialPort();
     public int connectedBitrate = 0;
     public string connectedCOMPort = "";
+
+
     static void ClearLine(string text, int MoveBack, int xLines = 0) {
 
         if (MoveBack == 0) {
@@ -49,8 +51,16 @@ class appInterface{
         int inc = 0;
         int connectThroughTCPPort = 0;
         Console.WriteLine("TAB to cycle through configurations. ENTER to select:");
-        RunInBGorFG(5);
+        RunInBGorFG(5, "");
 
+        IPAddress[] addresses = Dns.GetHostAddresses(Dns.GetHostName());
+
+        string ipAddressesText = "";
+        foreach (IPAddress address in addresses) {
+            if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) {
+                ipAddressesText += address.ToString() + Environment.NewLine;
+            }
+        }
         while (true) {
             ClearLine("", 0);
             Console.Write(CurrentArg[inc]);
@@ -85,7 +95,7 @@ class appInterface{
 
                 if (inc == 1) {
                     while (inc == 1) {
-                        Console.WriteLine("\nIP address:");
+                        Console.WriteLine($"\nHere is a list of all available IPs:\n{ipAddressesText}127.0.0.1\n\nEnter IP address: ");
                         string connectThroughIP = Console.ReadLine();
                         if (string.IsNullOrEmpty(connectThroughIP)) {
                             ClearLine("", 1, 4);
@@ -100,7 +110,7 @@ class appInterface{
                             break;  }}}
 
                 if (inc == 2) {
-                    RunInBGorFG(0);
+                    RunInBGorFG(0, "");
                 }
 
                     // Log to file
@@ -108,16 +118,19 @@ class appInterface{
                     WriteToLogFile("someText");}}}
     }
 
-    static void RunInBGorFG(int frontOrBack) {
+    static void RunInBGorFG(int frontOrBack, string EXIT) {
         [DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
 
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-        const int SW_HIDE = 0;
-        const int SW_SHOW = 5;
+        //HIDE = 0;
+        //SHOW = 5;
         IntPtr hWnd = GetConsoleWindow();
+        if (EXIT == "yes") {
+            Environment.Exit(0);
+        }
         ShowWindow(hWnd, frontOrBack);
     }
     static async Task ConnectionPoint(string ip, int port, string[] ArgsRotation, string LogFile = "") {                   
@@ -134,7 +147,7 @@ class appInterface{
 
                 //This is where it happens when connected
                 if (client.Connected) {
-                    RunInBGorFG(0);
+                    RunInBGorFG(0, "");
                     ClearLine("", 1,1);
                     Console.WriteLine("Connection established");
                     NetworkStream stream = client.GetStream();
@@ -195,12 +208,9 @@ class appInterface{
                             continue;
                         }
                         if (request.Substring(0, 4) == "EXIT") { 
-                            RunInBGorFG(5);
+                            RunInBGorFG(5, "yes");
                             Console.WriteLine("Do you want to exit? Y/N");
                             string exit = Console.ReadLine();
-                            if (exit == "Y") {
-                                Environment.Exit(0);
-                                }
                             continue;
                         }
                         continue;
