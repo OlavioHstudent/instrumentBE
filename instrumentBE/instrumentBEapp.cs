@@ -17,7 +17,7 @@ string LogFile = "log.txt";
 
 string[] ArgsRotation = new string[] {"Configure TCP port to use for FE connections",           // 0
                                       "Configure IP address and tcp port to instrumentDataDB",  // 1
-                                      "Run program in background - NOT WORKING - ",             // 2
+                                      "Run program in background",             // 2
                                       "Log to file",                                            // 3
                                       "This index is here because I can't access index 3 without it somehow :/ "};
 
@@ -93,7 +93,7 @@ class appInterface{
                         else {
                             Console.WriteLine($"\nIP address {connectThroughIP} selected, press enter to listen on port {connectThroughTCPPort}");
                             if (connectThroughTCPPort > 0) {
-                                ConnectionPoint(connectThroughTCPPort, CurrentArg);}
+                                ConnectionPoint(connectThroughIP, connectThroughTCPPort, CurrentArg);}
 
                             Console.WriteLine("\nTAB to cycle through configurations, ENTER to select:");
                             CurrentArg[1] = "Reconfigure IP to use for instrumentDataDB";
@@ -120,10 +120,11 @@ class appInterface{
         IntPtr hWnd = GetConsoleWindow();
         ShowWindow(hWnd, frontOrBack);
     }
-    static async Task ConnectionPoint(int port, string[] ArgsRotation, string LogFile = "") {                   
+    static async Task ConnectionPoint(string ip, int port, string[] ArgsRotation, string LogFile = "") {                   
         CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         Task listeningTask = Task.Run(async () => {
-            TcpListener listener = new TcpListener(IPAddress.Any, port);
+            IPAddress ipAddress = IPAddress.Parse(ip);
+            TcpListener listener = new TcpListener(ipAddress, port);
             listener.Start();
             string COMPortFromRequest = "3";
             int bitRateFromRequest = 9600;
@@ -186,19 +187,30 @@ class appInterface{
                         }
 
                         if (request.Substring(0, 9) == "writeconf") {
-                            RequestDataFromIno(request, dataTransfer);
+                            RequestDataFromIno("readconf", dataTransfer);
                             continue;
                         }
                         if (request.Substring(0, 10) == "readscaled") {
                             RequestDataFromIno(request, dataTransfer);
                             continue;
                         }
-                        if (!client.Connected) {
-                            break;}
+                        if (request.Substring(0, 4) == "EXIT") { 
+                            RunInBGorFG(5);
+                            Console.WriteLine("Do you want to exit? Y/N");
+                            string exit = Console.ReadLine();
+                            if (exit == "Y") {
+                                Environment.Exit(0);
+                                }
+                            continue;
+                        }
                         continue;
                     }
-                }}
-
+                }
+                if (!client.Connected) {
+                    Environment.Exit(0);
+                    break;
+                }
+            }
             Console.WriteLine("Stopped listening");
             listener.Stop();    } 
 
@@ -218,13 +230,9 @@ class appInterface{
     }
     static string ConnectSerialPort(string portName, int bitrate) {
         try {
-        // Set the serial port settings
             serialPort.PortName = portName;
             serialPort.BaudRate = bitrate;
-
-            // Open the serial port
             serialPort.Open();
-
             Console.WriteLine($"Connected to serial port {portName} at {bitrate} bps.");
             return "Connected";
             
@@ -237,7 +245,6 @@ class appInterface{
     static string DisconnectSerialPort() {
         if (serialPort.IsOpen) {
             try {
-                // Close the serial port
                 serialPort.Close();
 
                 if (!serialPort.IsOpen) {
@@ -259,7 +266,6 @@ class appInterface{
     private static void WriteToLogFile(string logText) {
         string fileName = "log.txt";
         string filePath = Path.Combine(Environment.CurrentDirectory, fileName);
-        // Open the file for writing
         using (FileStream fs = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.Read)) {
             using (StreamWriter sw = new StreamWriter(fs)) {
                 sw.WriteLine("" + System.DateTime.Now + " " + logText + "\r\n");
